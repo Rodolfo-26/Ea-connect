@@ -1,14 +1,15 @@
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart';
-import 'dart:io';
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // 🔔 Canal necesario para Android >= 8.0
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'chat_channel',
     'Mensajes del chat',
@@ -20,7 +21,7 @@ class NotificationService {
     await _requestPermission();
     await _initLocalNotifications();
     _setupOnMessageListener();
-    await _printToken();
+    await _saveTokenToFirestore();
   }
 
   static Future<void> _requestPermission() async {
@@ -30,11 +31,9 @@ class NotificationService {
       sound: true,
     );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('✅ Notificaciones autorizadas');
-    } else {
-      debugPrint('❌ Notificaciones no autorizadas');
-    }
+    debugPrint(settings.authorizationStatus == AuthorizationStatus.authorized
+        ? '✅ Notificaciones autorizadas'
+        : '❌ Notificaciones no autorizadas');
   }
 
   static Future<void> _initLocalNotifications() async {
@@ -43,7 +42,6 @@ class NotificationService {
 
     await _localNotificationsPlugin.initialize(initSettings);
 
-    // 🟡 Registro del canal de notificación (necesario para Android 8+)
     if (Platform.isAndroid) {
       await _localNotificationsPlugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -76,8 +74,16 @@ class NotificationService {
     });
   }
 
-  static Future<void> _printToken() async {
+  static Future<void> _saveTokenToFirestore() async {
     final token = await _messaging.getToken();
-    debugPrint('🔐 Token FCM: $token');
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null && token != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'fcmToken': token,
+      });
+
+      debugPrint('🔐 Token guardado en Firestore: $token');
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../architect/architect_main.dart';
 import '../user/cliente_main.dart';
@@ -33,6 +34,21 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       final uid = credential.user!.uid;
+
+      // Obtener token FCM y guardar en Firestore
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        // Intenta actualizar token en la colección 'users'
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'fcmToken': fcmToken,
+        }).catchError((_) async {
+          // Si falla (por ejemplo, doc no existe), intenta en 'clientes'
+          await FirebaseFirestore.instance.collection('clientes').doc(uid).update({
+            'fcmToken': fcmToken,
+          });
+        });
+      }
+
       final firestore = FirebaseFirestore.instance;
 
       final clienteDoc = await firestore.collection('clientes').doc(uid).get();

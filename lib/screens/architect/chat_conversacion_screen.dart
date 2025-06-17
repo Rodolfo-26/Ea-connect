@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../../widgets/image_full_screen.dart';
 
 class ChatConversacionScreen extends StatefulWidget {
@@ -19,8 +21,7 @@ class ChatConversacionScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatConversacionScreen> createState() =>
-      _ChatConversacionScreenState();
+  State<ChatConversacionScreen> createState() => _ChatConversacionScreenState();
 }
 
 class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
@@ -31,11 +32,12 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     final texto = _mensajeController.text.trim();
     if (texto.isEmpty) return;
 
-    await FirebaseFirestore.instance
+    final mensajeRef = FirebaseFirestore.instance
         .collection('chats')
         .doc(widget.chatId)
-        .collection('messages')
-        .add({
+        .collection('messages');
+
+    await mensajeRef.add({
       'texto': texto,
       'imageUrl': '',
       'remitenteId': currentUserId,
@@ -43,6 +45,52 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     });
 
     _mensajeController.clear();
+
+    final chatDoc = await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).get();
+    final participantes = List<String>.from(chatDoc['participantes']);
+    final destinatarios = participantes.where((id) => id != currentUserId).toList();
+
+    for (final destinatarioId in destinatarios) {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(destinatarioId).get();
+      final token = userDoc['fcmToken'];
+
+      if (token != null && token.isNotEmpty) {
+        await _enviarNotificacionPush(token, texto);
+      }
+    }
+  }
+
+  Future<void> _enviarNotificacionPush(String token, String mensaje) async {
+    const String serverKey = 'AAAA...';
+
+    try {
+      await FirebaseFirestore.instance.collection('notificaciones').add({
+        'to': token,
+        'title': 'Nuevo mensaje',
+        'body': mensaje,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      final url = Uri.parse('https://fcm.googleapis.com/fcm/send');
+      await HttpClient().postUrl(url).then((HttpClientRequest request) async {
+        request.headers.set('Content-Type', 'application/json');
+        request.headers.set('Authorization', 'key=$serverKey');
+
+        final body = {
+          'to': token,
+          'notification': {
+            'title': 'Nuevo mensaje',
+            'body': mensaje,
+          },
+          'priority': 'high',
+        };
+
+        request.add(utf8.encode(json.encode(body)));
+        await request.close();
+      });
+    } catch (e) {
+      debugPrint('Error al enviar notificación: $e');
+    }
   }
 
   Future<void> _enviarImagen() async {
@@ -51,8 +99,20 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     if (pickedFile == null) return;
 
     final file = File(pickedFile.path);
-    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    await _subirYEnviarImagen(file);
+  }
 
+  Future<void> _enviarFotoDesdeCamara() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+    if (pickedFile == null) return;
+
+    final file = File(pickedFile.path);
+    await _subirYEnviarImagen(file);
+  }
+
+  Future<void> _subirYEnviarImagen(File file) async {
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
     final ref = FirebaseStorage.instance
         .ref()
         .child('chat_images/${widget.chatId}/$fileName.jpg');
@@ -83,8 +143,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     List<Map<String, String>> integrantes = [];
 
     for (String uid in uids) {
-      final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (userDoc.exists) {
         final data = userDoc.data()!;
         integrantes.add({
@@ -177,53 +236,73 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
                   padding: const EdgeInsets.all(12),
                   itemCount: mensajes.length,
                   itemBuilder: (context, index) {
-                    final msg =
-                        mensajes[index].data() as Map<String, dynamic>;
+                    final msg = mensajes[index].data() as Map<String, dynamic>;
                     final isMe = msg['remitenteId'] == currentUserId;
+                    final timestamp = msg['timestamp'] as Timestamp?;
+                    final hora = timestamp != null
+                        ? DateFormat('hh:mm a').format(timestamp.toDate())
+                        : '';
 
-                    if (msg['imageUrl'] != null &&
-                        msg['imageUrl'].toString().isNotEmpty) {
+                    if (msg['imageUrl'] != null && msg['imageUrl'].toString().isNotEmpty) {
                       return Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ImageFullScreen(
-                                    imageUrl: msg['imageUrl']),
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment:
+                              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ImageFullScreen(imageUrl: msg['imageUrl']),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isMe ? Colors.blue : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Image.network(msg['imageUrl'], width: 200),
                               ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: isMe ? Colors.blue : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Image.network(msg['imageUrl'], width: 200),
-                          ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(hora,
+                                  style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            ),
+                          ],
                         ),
                       );
                     }
 
                     return Align(
-                      alignment:
-                          isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          msg['texto'] ?? '',
-                          style: TextStyle(
-                              color: isMe ? Colors.white : Colors.black),
-                        ),
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment:
+                            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.blue : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              msg['texto'] ?? '',
+                              style: TextStyle(color: isMe ? Colors.white : Colors.black),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(hora,
+                                style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -237,6 +316,10 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
             color: Colors.white,
             child: Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.camera_alt),
+                  onPressed: _enviarFotoDesdeCamara,
+                ),
                 IconButton(
                   icon: const Icon(Icons.image),
                   onPressed: _enviarImagen,
