@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "931344943785",
+    "project_id": "ea-connect-4f65f",
+    "storage_bucket": "ea-connect-4f65f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931344943785:android:ca285e824603403b68b7b8",
+        "android_client_info": {
+          "package_name": "com.espacioarquitectura.ea_connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNH65OpvSSGs0MccxzF0TVXcAcB0T-Shk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

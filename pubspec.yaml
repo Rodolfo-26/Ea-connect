@@ -1,0 +1,50 @@
+name: ea_connect
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.2
+  firebase_core: ^2.30.0
+  firebase_auth: ^4.18.0
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.2.7
+  firebase_messaging: ^14.7.10
+  flutter_local_notifications: ^19.2.1
+  image_picker: ^1.0.4
+  dio: ^5.4.0  # para descargar archivos
+  path_provider: ^2.1.1
+  permission_handler: ^11.0.0
+  image_gallery_saver_plus: ^4.0.1
+  http: 1.4.0
+  device_info_plus: ^10.0.1
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icono.png
+    - assets/Logo.png
+    - assets/bodega.jpg
+    - assets/casa.jpg
+    - assets/fachada.jpg
+    - assets/jardinera.jpg
+    - assets/iconoLogin.png
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icono.png"
