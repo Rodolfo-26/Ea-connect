@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FeedScreen extends StatelessWidget {
@@ -13,15 +12,6 @@ class FeedScreen extends StatelessWidget {
     this.role,
     this.onToggleTheme,
   });
-
-  void _confirmExit(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    await prefs.setBool('isGuest', true);
-    if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,12 +88,7 @@ class FeedScreen extends StatelessWidget {
                 );
               },
             ),
-            if (!isGuest)
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Cerrar sesión'),
-                onTap: () => _confirmExit(context),
-              ),
+            
           ],
         ),
       ),

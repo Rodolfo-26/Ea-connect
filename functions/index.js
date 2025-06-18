@@ -1,62 +1,43 @@
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
 
-initializeApp();
+admin.initializeApp();
 
-exports.sendChatNotification = onDocumentCreated("chats/{chatId}/messages/{messageId}", async (event) => {
-  try {
-    const snap = event.data;
-    if (!snap) {
-      console.log("No snapshot data");
-      return;
-    }
+exports.enviarNotificacionMensaje = functions.firestore
+  .document("chats/{chatId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const mensaje = snap.data();
+    const chatId = context.params.chatId;
 
-    const message = snap.data();
-    const chatId = event.params.chatId;
-    const texto = message.texto || "";
-    const remitenteId = message.remitenteId;
+    // Obtener participantes del chat
+    const chatDoc = await admin.firestore().collection('chats').doc(chatId).get();
+    const participantes = chatDoc.data()?.participantes || [];
 
-    const db = getFirestore();
-    const chatDoc = await db.collection("chats").doc(chatId).get();
-
-    if (!chatDoc.exists) {
-      console.log("Chat no encontrado:", chatId);
-      return;
-    }
-
-    const participantes = chatDoc.data().participantes || [];
-    const destinatarios = participantes.filter(uid => uid !== remitenteId);
-
-    const tokens = [];
+    const destinatarios = participantes.filter(uid => uid !== mensaje.remitenteId);
 
     for (const uid of destinatarios) {
-      const userDoc = await db.collection("users").doc(uid).get();
-      if (userDoc.exists) {
-        const token = userDoc.data().fcmToken;
-        if (token) tokens.push(token);
+      const userDoc = await admin.firestore().collection('users').doc(uid).get();
+      const token = userDoc.data()?.fcmToken;
+
+      if (token) {
+        const payload = {
+          notification: {
+            title: "Nuevo mensaje",
+            body: mensaje.texto || "📷 Imagen",
+            android_channel_id: "mensaje_channel", // 🔧 canal obligatorio en Android 13+
+          },
+          data: {
+            chatId: chatId,
+            remitenteId: mensaje.remitenteId,
+          },
+        };
+
+        try {
+          await admin.messaging().sendToDevice(token, payload);
+          console.log(`✅ Notificación enviada a ${uid}`);
+        } catch (error) {
+          console.error(`❌ Error al enviar a ${uid}:`, error);
+        }
       }
     }
-
-    if (tokens.length === 0) {
-      console.log("No hay tokens para enviar notificación");
-      return;
-    }
-
-    const payload = {
-      notification: {
-        title: "Nuevo mensaje en chat",
-        body: texto,
-      },
-      data: {
-        click_action: "FLUTTER_NOTIFICATION_CLICK",
-      }
-    };
-
-    const response = await getMessaging().sendToDevice(tokens, payload);
-    console.log("Notificaciones enviadas:", response.successCount);
-  } catch (error) {
-    console.error("Error en la función sendChatNotification:", error);
-  }
-});
+  });

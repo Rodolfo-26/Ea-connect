@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import '../feed/feed_screen.dart';
 import 'cliente_mensajes.dart';
 import 'cliente_progress.dart';
 import 'cliente_perfil.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ClienteMainScreen extends StatefulWidget {
   final bool isGuest;
@@ -27,9 +27,9 @@ class _ClienteMainScreenState extends State<ClienteMainScreen> {
 
   final List<String> _titles = [
     '',
-    'Chat de Mensajes',
-    'Progreso',
-    'Cuenta',
+    'MENSAJES',
+    'PROGRESO',
+    'CUENTA',
   ];
 
   @override
@@ -39,7 +39,7 @@ class _ClienteMainScreenState extends State<ClienteMainScreen> {
       FeedScreen(isLoggedIn: true, onToggleTheme: widget.onToggleTheme),
       const ClienteMensajesScreen(),
       const ClienteProgressScreen(),
-      const ClientePerfilScreen(),
+      const ClientePerfilScreen(), // ✅ agregada la pantalla de cuenta
     ];
   }
 
@@ -63,36 +63,6 @@ class _ClienteMainScreenState extends State<ClienteMainScreen> {
     );
   }
 
-  void _confirmLogout(BuildContext context) async {
-    Navigator.pop(context);
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('¿Cerrar sesión?'),
-        content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear();
-              await prefs.setBool('isGuest', true);
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
-            },
-            child: const Text('Cerrar sesión'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -105,7 +75,8 @@ class _ClienteMainScreenState extends State<ClienteMainScreen> {
                 _titles[_currentIndex],
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              backgroundColor: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
+              backgroundColor: theme.appBarTheme.backgroundColor ??
+                  theme.scaffoldBackgroundColor,
               elevation: 1,
               iconTheme: theme.iconTheme,
               automaticallyImplyLeading: true,
@@ -148,15 +119,12 @@ class _ClienteMainScreenState extends State<ClienteMainScreen> {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Cerrar sesión'),
-              onTap: () => _confirmLogout(context),
-            ),
           ],
         ),
       ),
-      body: _screens[_currentIndex],
+      body: _currentIndex < _screens.length
+          ? _screens[_currentIndex]
+          : const Center(child: Text('Pantalla no disponible')),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {

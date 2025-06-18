@@ -1,100 +1,126 @@
 import 'package:flutter/material.dart';
-import '../feed/feed_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../login/login_screen.dart';
+import '../user/guest_main.dart';
 
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   const WelcomeScreen({super.key, required this.onToggleTheme});
 
+  Future<void> _continuarComoInvitado(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isGuest', true);
+    await prefs.setBool('isLoggedIn', false);
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GuestMainScreen(onToggleTheme: onToggleTheme),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final List<Map<String, dynamic>> servicios = [
+      {'icon': Icons.architecture, 'texto': 'Diseño arquitectónico personalizado'},
+      {'icon': Icons.design_services, 'texto': 'Supervisión y gestión de obra'},
+      {'icon': Icons.camera, 'texto': 'Renderizados y presentación 3D'},
+      {'icon': Icons.home_repair_service, 'texto': 'Remodelación de espacios'},
+      {'icon': Icons.engineering, 'texto': 'Consultoría técnica profesional'},
+    ];
+
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.amber),
-              child: Center(
-                child: Text(
-                  'EA CONNECT',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
+      // 🔴 Eliminamos el AppBar para evitar la franja superior
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Image.asset('assets/Logo.png', height: 120),
+              const SizedBox(height: 30),
+
+              Text(
+                'Bienvenido a EA Connect',
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.brightness_6),
-              title: const Text('Cambiar tema'),
-              onTap: () {
-                Navigator.pop(context);
-                onToggleTheme();
-              },
-            ),
-          ],
-        ),
-      ),
-      appBar: AppBar(
-        title: const Text('Bienvenido'),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset('assets/Logo.png', height: 120),
-            const SizedBox(height: 30),
-            Text(
-              'Bienvenido a EA Connect',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Explora proyectos arquitectónicos o inicia sesión para acceder a más funciones.',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FeedScreen(isLoggedIn: false),
+              const SizedBox(height: 24),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: servicios.map((servicio) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(servicio['icon'], color: Colors.amber, size: 28),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            servicio['texto'],
+                            style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                },
-                child: const Text('Continuar como invitado'),
+                }).toList(),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => LoginScreen(onToggleTheme: onToggleTheme),
+
+           
+              const SizedBox(height: 40),
+
+              // ⬜ Botón blanco
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    side: const BorderSide(color: Colors.black),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
-                );
-              },
-              child: const Text('Iniciar Sesión'),
-            ),
-          ],
+                  onPressed: () => _continuarComoInvitado(context),
+                  child: const Text('Continuar como invitado'),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 🟡 Botón amarillo
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LoginScreen(onToggleTheme: onToggleTheme),
+                      ),
+                    );
+                  },
+                  child: const Text('Iniciar Sesión'),
+                ),
+              ),
+            ],
+          ),
+          
         ),
       ),
     );

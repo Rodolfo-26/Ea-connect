@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../feed/feed_screen.dart';
 import 'architect_chat.dart';
@@ -23,9 +22,9 @@ class _ArchitectMainScreenState extends State<ArchitectMainScreen> {
 
   final List<String> _titles = [
     '',
-    'Chat de Mensajes',
-    'Progreso',
-    'Cuenta',
+    'MENSAJES',
+    'PROGRESO',
+    'CUENTA',
   ];
 
   @override
@@ -59,34 +58,6 @@ class _ArchitectMainScreenState extends State<ArchitectMainScreen> {
     );
   }
 
-  void _confirmLogout(BuildContext context) {
-    Navigator.pop(context); // Cierra Drawer
-    Future.delayed(const Duration(milliseconds: 150), () {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('¿Cerrar sesión?'),
-          content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                await prefs.setBool('isGuest', true);
-                if (!mounted) return;
-                Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
-              },
-              child: const Text('Cerrar sesión'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,11 +112,6 @@ class _ArchitectMainScreenState extends State<ArchitectMainScreen> {
                   applicationLegalese: '© 2025 TuEmpresa',
                 );
               },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Cerrar sesión'),
-              onTap: () => _confirmLogout(context),
             ),
           ],
         ),
